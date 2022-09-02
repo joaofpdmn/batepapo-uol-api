@@ -19,10 +19,18 @@ let db;
 
 mongoClient.connect().then(() => {
     db = mongoClient.db("bate_papo_uol");
-})
+});
 
 app.post('/participants', async (req, res) => {
     let { name, lastStatus } = req.body;
+    const nameCheck = await db.collection('participants').findOne({
+        name: name,
+    });
+    if(nameCheck){
+        res.status(409).send("Esse nome já existe na lista!");
+        return;
+    }
+
     const time = dayjs(Date.now(), "HH:MM:SS", 'de');
     const statusMessage = {
         from: name,
@@ -38,7 +46,7 @@ app.post('/participants', async (req, res) => {
         const value = await schema.validateAsync({ name });
         console.log('deu bom');
     } catch (error) {
-        res.status(422).send("Campo obrigatório!");
+        return res.status(422).send("Campo obrigatório!");
     }
     lastStatus = Date.now();
     const participantsResult = await db.collection('participants').insertOne({name, lastStatus}).then(() => {
@@ -47,7 +55,7 @@ app.post('/participants', async (req, res) => {
     const messageResult = await db.collection('messages').insertOne(statusMessage).then(() => {
         console.log('Status enviado.')
     })
-    res.status(201).send;
+    return res.status(201).send;
 });
 
 app.get('/participants', (req, res) => {
