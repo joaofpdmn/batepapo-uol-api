@@ -6,13 +6,11 @@ import Joi from 'joi';
 import dayjs from 'dayjs';
 import customParseFormat from "dayjs/plugin/customParseFormat.js";
 
-
 const app = express();
 app.use(cors());
 app.use(express.json());
 dotenv.config();
 dayjs.extend(customParseFormat);
-dayjs.locale('de');
 
 const mongoClient = new MongoClient(process.env.MONGO_URI);
 let db;
@@ -21,17 +19,22 @@ mongoClient.connect().then(() => {
     db = mongoClient.db("bate_papo_uol");
 });
 
+function timeCalculator(){
+    return dayjs().format("HH:mm:ss");
+}
+
+
 app.post('/participants', async (req, res) => {
     let { name, lastStatus } = req.body;
     const nameCheck = await db.collection('participants').findOne({
         name: name,
     });
-    if(nameCheck){
+    if (nameCheck) {
         res.status(409).send("Esse nome já existe na lista!");
         return;
     }
 
-    const time = dayjs(Date.now(), "HH:MM:SS", 'de');
+    const time = timeCalculator();
     const statusMessage = {
         from: name,
         to: 'Todos',
@@ -49,7 +52,7 @@ app.post('/participants', async (req, res) => {
         return res.status(422).send("Campo obrigatório!");
     }
     lastStatus = Date.now();
-    const participantsResult = await db.collection('participants').insertOne({name, lastStatus}).then(() => {
+    const participantsResult = await db.collection('participants').insertOne({ name, lastStatus }).then(() => {
         res.send('Ok');
     });
     const messageResult = await db.collection('messages').insertOne(statusMessage).then(() => {
@@ -66,8 +69,8 @@ app.get('/participants', (req, res) => {
 })
 
 app.post('/messages', async (req, res) => {
-    const { to, text, type} = req.body;
-    const { from } = req.headers;
+    const { to, text, type } = req.body;
+    const from = req.headers.user;
 
     const schema = Joi.object({
         to: Joi.string().min(1).required(),
@@ -75,20 +78,72 @@ app.post('/messages', async (req, res) => {
         type: Joi.string().valid('message', 'private_message').required()
     })
     try {
-        const value = await schema.validateAsync({to, text, type});
+        const value = await schema.validateAsync({ to, text, type });
         console.log('Funcionou');
     } catch (error) {
         res.status(422).send('deu ruim');
+        return;
+    }
+    const fromCheck = await db.collection('participants').findOne({
+        name: from,
+    });
+    if (!fromCheck) {
+        res.status(422).send("Não existe esse usuário");
+        return;
     }
 
-    const time = dayjs(Date.now(), "HH:MM:SS", 'de');
+    const time = timeCalculator();
 
-    const result = await db.collection('messages').insertOne({to, type, from, time, text}).then(() => {
+    const result = await db.collection('messages').insertOne({ to, type, from, time, text }).then(() => {
         res.send('Ok');
     });
-    res.status(201).send;
+    res.sendStatus(201);
 })
 
+app.get('/messages', async (req, res) => {
+    let { limit } = req.query;
+    const from = req.headers.user;
+    const selectedArray = [];
+    try {
+        const result = await db.collection('messages').find().toArray();
+        for (let i = 0; i < result.length; i++) {
+            if (result[i].to === 'Todos') {
+                selectedArray.push(result[i]);
+                continue;
+            }
+            else if (result[i].to === from) {
+                selectedArray.push(result[i]);
+                continue;
+            }
+            else if (result[i].from === from) {
+                selectedArray.push(result[i]);
+                continue;
+            }
+        }
+        if (limit) {
+            var newResult = selectedArray.slice(limit);
+            res.send(newResult);
+            return;
+        }
+        res.send(selectedArray);
+    } catch (error) {
+        res.sendStatus(422);
+    }
+});
+
+app.post('/status', (req, res) => {
+    const from = req.headers.user;
+    db.collection('participants').findOne({ name: from, }).then(data => {
+        console.log(data)
+        console.log(data.lastStatus);
+        data.lastStatus = Date.now();
+        console.log(data.lastStatus);
+        return res.sendStatus(200);
+    }).catch(() => {
+        console.log('aqui')
+        return res.sendStatus(404);
+    })
+});
 
 
 
@@ -98,4 +153,5 @@ app.post('/messages', async (req, res) => {
 
 
 
-app.listen(5000, () => { console.log("Ouvindo")});
+
+app.listen(5000, () => { console.log("Ouvindo") });
