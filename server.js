@@ -19,7 +19,7 @@ mongoClient.connect().then(() => {
     db = mongoClient.db("bate_papo_uol");
 });
 
-function timeCalculator(){
+function timeCalculator() {
     return dayjs().format("HH:mm:ss");
 }
 
@@ -145,13 +145,31 @@ app.post('/status', (req, res) => {
     })
 });
 
+setInterval(async () => {
+    const participants = await db.collection('participants').find().toArray();
+    console.log('teste');
+    for (let i = 0; i < participants.length; i++) {
+        var participantStatus = Date.now() - participants[i].lastStatus;
+        console.log(participantStatus);
+        if (participantStatus > 10000) {
+            console.log('testando aqui');
+            try {
+                const message = {
+                    from: participants.name,
+                    to: "Todos",
+                    text: "sai da sala...",
+                    type: "status",
+                    time: timeCalculator()
+                }
+                await db.collection('messages').insertOne(message);
+                await db.collection('participants').deleteOne(participants[i]);
+                
+            } catch (error) {
+                console.log('Errou aqui');
+            }
+        }
+    }
+}, 15000);
 
 
-
-
-
-
-
-
-
-app.listen(5000, () => { console.log("Ouvindo") });
+app.listen(5000, () => { console.log("Ouvindo")  });
