@@ -94,9 +94,9 @@ app.post('/messages', async (req, res) => {
     const time = timeCalculator();
 
     const result = await db.collection('messages').insertOne({ to, type, from, time, text }).then(() => {
-        res.send('Ok');
+        console.log('Ok');
     });
-    res.sendStatus(201);
+    return res.sendStatus(201);
 })
 
 app.get('/messages', async (req, res) => {
@@ -133,13 +133,9 @@ app.get('/messages', async (req, res) => {
 app.post('/status', (req, res) => {
     const from = req.headers.user;
     db.collection('participants').findOne({ name: from, }).then(data => {
-        console.log(data)
-        console.log(data.lastStatus);
         data.lastStatus = Date.now();
-        console.log(data.lastStatus);
         return res.sendStatus(200);
     }).catch(() => {
-        console.log('aqui')
         return res.sendStatus(404);
     })
 });
@@ -168,6 +164,7 @@ setInterval(async () => {
         }
     }
 }, 15000);
+
 
 
 app.listen(5000, () => { console.log("Ouvindo")  });
