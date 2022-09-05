@@ -148,7 +148,7 @@ app.delete('/messages/:id', async (req, res) => {
     const from = req.headers.user;
     const { id } = req.params;
     try {
-        await usersColection.deleteOne({ _id: new ObjectId(id) })
+        await db.collection('participants').deleteOne({ _id: new ObjectId(id) })
 
     } catch (error) {
         return res.sendStatus(404);
