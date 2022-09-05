@@ -153,7 +153,7 @@ setInterval(async () => {
         if (participantStatus > 10000) {
             try {
                 const message = {
-                    from: participants.name,
+                    from: participants[i].name,
                     to: "Todos",
                     text: "sai da sala...",
                     type: "status",
