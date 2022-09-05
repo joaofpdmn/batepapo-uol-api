@@ -23,7 +23,6 @@ function timeCalculator() {
     return dayjs().format("HH:mm:ss");
 }
 
-
 app.post('/participants', async (req, res) => {
     let { name, lastStatus } = req.body;
     const nameCheck = await db.collection('participants').findOne({
@@ -81,7 +80,7 @@ app.post('/messages', async (req, res) => {
         const value = await schema.validateAsync({ to, text, type });
         console.log('Funcionou');
     } catch (error) {
-        res.status(422).send('deu ruim');
+        res.sendStatus(422);
         return;
     }
     const fromCheck = await db.collection('participants').findOne({
@@ -121,7 +120,7 @@ app.get('/messages', async (req, res) => {
             }
         }
         if (limit) {
-            var newResult = selectedArray.slice(limit);
+            var newResult = selectedArray.slice(-limit);
             res.send(newResult);
             return;
         }
@@ -152,7 +151,6 @@ setInterval(async () => {
         var participantStatus = Date.now() - participants[i].lastStatus;
         console.log(participantStatus);
         if (participantStatus > 10000) {
-            console.log('testando aqui');
             try {
                 const message = {
                     from: participants.name,
