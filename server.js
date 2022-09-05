@@ -42,11 +42,10 @@ app.post('/participants', async (req, res) => {
         time: time
     };
     const schema = Joi.object({
-        name: Joi.string().min(1).required(),
+        name: Joi.string().min(1).required().trim(),
     });
     try {
         const value = await schema.validateAsync({ name });
-        console.log('deu bom');
     } catch (error) {
         return res.status(422).send("Campo obrigatório!");
     }
@@ -63,7 +62,6 @@ app.post('/participants', async (req, res) => {
 app.get('/participants', (req, res) => {
     db.collection('participants').find().toArray().then(data => {
         res.send(data);
-        console.log(data);
     })
 })
 
@@ -73,12 +71,11 @@ app.post('/messages', async (req, res) => {
 
     const schema = Joi.object({
         to: Joi.string().min(1).required(),
-        text: Joi.string().min(1).required(),
+        text: Joi.string().min(1).required().trim(),
         type: Joi.string().valid('message', 'private_message').required()
     })
     try {
         const value = await schema.validateAsync({ to, text, type });
-        console.log('Funcionou');
     } catch (error) {
         res.sendStatus(422);
         return;
@@ -90,11 +87,13 @@ app.post('/messages', async (req, res) => {
         res.status(422).send("Não existe esse usuário");
         return;
     }
+    
+    await db.collection('participants')
 
     const time = timeCalculator();
 
     const result = await db.collection('messages').insertOne({ to, type, from, time, text }).then(() => {
-        console.log('Ok');
+        console.log(`${from} enviou mensagem`);
     });
     return res.sendStatus(201);
 })
@@ -130,19 +129,34 @@ app.get('/messages', async (req, res) => {
     }
 });
 
-app.post('/status', (req, res) => {
+app.post('/status', async (req, res) => {
     const from = req.headers.user;
-    db.collection('participants').findOne({ name: from, }).then(data => {
-        data.lastStatus = Date.now();
+    try {
+        const participant = await db.collection('participants').findOne({ name: from });
+        console.log(participant);
+        participant.lastStatus = Date.now();
+        await db.collection('participants').updateOne({ _id: participant._id }, {$set:participant});
+        console.log('ta funcionando')
         return res.sendStatus(200);
-    }).catch(() => {
+    } catch (error) {
+        console.log('nao esta funcionando')
         return res.sendStatus(404);
-    })
+    }
+});
+
+app.delete('/messages/:id', async (req, res) => {
+    const from = req.headers.user;
+    const { id } = req.params;
+    try {
+        await usersColection.deleteOne({ _id: new ObjectId(id) })
+
+    } catch (error) {
+        return res.sendStatus(404);
+    }
 });
 
 setInterval(async () => {
     const participants = await db.collection('participants').find().toArray();
-    console.log('teste');
     for (let i = 0; i < participants.length; i++) {
         var participantStatus = Date.now() - participants[i].lastStatus;
         console.log(participantStatus);
@@ -157,9 +171,8 @@ setInterval(async () => {
                 }
                 await db.collection('messages').insertOne(message);
                 await db.collection('participants').deleteOne(participants[i]);
-                
             } catch (error) {
-                console.log('Errou aqui');
+                console.log('deu ruim');
             }
         }
     }
@@ -167,4 +180,4 @@ setInterval(async () => {
 
 
 
-app.listen(5000, () => { console.log("Ouvindo")  });
+app.listen(5000, () => { console.log("Ouvindo") });
